@@ -32,6 +32,7 @@ from os.path import dirname
 
 import shapely
 from shapely.ops import polygonize
+import sys
 
 # create the dialog for zoom to point
 class PolygonizerDialog(QDialog):
@@ -72,8 +73,8 @@ class PolygonizerDialog(QDialog):
     outFeat = QgsFeature()
     layer = QgsVectorLayer()
     layer = self.getMapLayerByName(self.ui.cmbLayer.currentText())
+    progress = 0.
 
-    #layer = self.iface.activeLayer()
     provider = layer.dataProvider()
 
     allAttrs = provider.attributeIndexes()
@@ -93,15 +94,21 @@ class PolygonizerDialog(QDialog):
     splitID = QgsMapLayerRegistry.instance().addMapLayer(split_lines).getLayerID()
     split_provider = split_lines.dataProvider()
 
-
+    if provider.featureCount() == 0:
+      QMessageBox.critical(self.iface.mainWindow(), "Polygonizer", "Layer is empty!" )
+      sys.exit(0)
+    step = 30. / float(provider.featureCount())
+    
     while provider.nextFeature( inFeat ):
       inGeom = inFeat.geometry()
-
       if inFeat.geometry().isMultipart():
         for line in inFeat.geometry().asMultiPolyline():
           self.splitline(line,split_provider,split_lines)
       else:
         self.splitline(inFeat.geometry().asPolyline(),split_provider,split_lines)
+      progress += step
+      self.ui.pbProgress.setValue(progress)
+
 
 
     #remove duplicate lines
@@ -109,31 +116,41 @@ class PolygonizerDialog(QDialog):
     lines = []
 
     split_provider.select()
+    step = 15. / float(split_provider.featureCount())
+    #QMessageBox.critical(self.iface.mainWindow(), "d", str(split_provider.featureCount()))
     while split_provider.nextFeature( lineFeat ):
       temp = lineFeat.geometry().asPolyline()
       revTemp = [temp[-1], temp[0]]
       if temp not in lines and revTemp not in lines: lines.append( lineFeat.geometry().asPolyline() )
+      progress += step
+      self.ui.pbProgress.setValue(progress)
+
 
     QgsMapLayerRegistry.instance().removeMapLayer(splitID)
     del split_lines
     del split_provider
     #QMessageBox.critical(self.iface.mainWindow(), "d", str(len(lines)))
-    #QgsMapLayerRegistry.instance().removeMapLayer(layerID)
+
     single_lines = QgsVectorLayer("LineString","single","memory")
     singleID = QgsMapLayerRegistry.instance().addMapLayer(single_lines).getLayerID() 
     single_provider = single_lines.dataProvider()
 
+    step = 15. / float(len(lines))
     for line in lines:
       outFeat.setGeometry(QgsGeometry.fromPolyline(line))
       single_provider.addFeatures([outFeat])
       single_lines.updateExtents()
+      progress += step
+      self.ui.pbProgress.setValue(progress)
 
     #intersections
     index = createIndex(single_provider)
     lines = []
     single_provider.select()
-
+    step = 30. / float(single_provider.featureCount())
     while single_provider.nextFeature(inFeat):
+      #self.ui.pbProgress.setValue(progress)
+      #progress += 1
       pointList = []
       inGeom = inFeat.geometry()
       lineList = index.intersects( inGeom.boundingBox())
@@ -161,6 +178,8 @@ class PolygonizerDialog(QDialog):
         countSubLines = len(tempLine)-1
         for p in range(countSubLines):
           lines.append([tempLine[p],tempLine[p+1]])
+      progress += step
+      self.ui.pbProgress.setValue(progress)
 
     QgsMapLayerRegistry.instance().removeMapLayer(singleID)
     del single_lines
@@ -171,20 +190,27 @@ class PolygonizerDialog(QDialog):
 
     #fields.extend([QgsField("area",QVariant.Double),QgsField("perimiter",QVariant.Double)])
     #QMessageBox.critical(self.iface.mainWindow(), "d", str(fields))
-    fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
+    if self.ui.cbGeometry.isChecked():
+      fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
+      fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
+
     writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+    self.ui.pbProgress.setValue(95)
     for polygon in polygons:
 
       outFeat.setGeometry( QgsGeometry.fromWkt( str(polygon) ) )
-      nr = len(fields)-1
-      outFeat.setAttributeMap({ nr:outFeat.geometry().area() })
+      if self.ui.cbGeometry.isChecked():
+        nrArea = len(fields)-2
+        nrPerimeter = len(fields)-1
+        outFeat.setAttributeMap({ nrArea:outFeat.geometry().area(),
+                                  nrPerimeter:outFeat.geometry().length() })
       writer.addFeature( outFeat )
 
     del writer
 
     self.iface.addVectorLayer(new_path, out_name, "ogr")
-
-    self.close()
+    self.ui.pbProgress.setValue(100)
+    #self.close()
   #stop
 
   def getMapLayerByName(self, myName ):

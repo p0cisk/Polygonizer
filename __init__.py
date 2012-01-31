@@ -24,11 +24,11 @@ def name():
 def description():
   return "Creates polygons from intersecting lines (requires shapely library)"
 def version(): 
-  return "Version 0.1" 
+  return "Version 0.2" 
 def icon():
   return "icon.png"
 def qgisMinimumVersion():
-  return "1.0"
+  return "1.5"
 def classFactory(iface): 
   # load Polygonizer class from file Polygonizer
   from polygonizer import Polygonizer 
