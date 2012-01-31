@@ -17,6 +17,19 @@ email                : p0cisk (at) o2 pl
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+Changelog:
+0.3
+-fix error -> polygonize only visible lines if whole layer isn't displayed in map window
+-temp layers aren't visible
+
+0.2
+-add progress bar
+-add geometry columns creation (area and perimeter)
+
+0.1
+-first release
+****************************************************************************/
+
  This script initializes the plugin, making it known to QGIS.
 """
 def name(): 
@@ -24,7 +37,7 @@ def name():
 def description():
   return "Creates polygons from intersecting lines (requires shapely library)"
 def version(): 
-  return "Version 0.2" 
+  return "Version 0.3" 
 def icon():
   return "icon.png"
 def qgisMinimumVersion():

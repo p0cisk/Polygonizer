@@ -1,6 +1,6 @@
 """
 /***************************************************************************
-LayerManagerDialog
+PolygonizerDialog
 A QGIS plugin
 Creates polygons from intersecting lines
                              -------------------
@@ -67,7 +67,6 @@ class PolygonizerDialog(QDialog):
 
   def Polygonize(self):
     #start
-    #self.Form.setWindowTitle("jakis tekst")
     inFeat = QgsFeature()
     inFeatB = QgsFeature()
     outFeat = QgsFeature()
@@ -91,15 +90,17 @@ class PolygonizerDialog(QDialog):
 
     #split lines into single segments
     split_lines = QgsVectorLayer("LineString","split","memory")
-    splitID = QgsMapLayerRegistry.instance().addMapLayer(split_lines).getLayerID()
+    #splitID = QgsMapLayerRegistry.instance().addMapLayer(split_lines).getLayerID()
     split_provider = split_lines.dataProvider()
 
     if provider.featureCount() == 0:
       QMessageBox.critical(self.iface.mainWindow(), "Polygonizer", "Layer is empty!" )
       sys.exit(0)
     step = 30. / float(provider.featureCount())
-    
+
+    provider.select()
     while provider.nextFeature( inFeat ):
+
       inGeom = inFeat.geometry()
       if inFeat.geometry().isMultipart():
         for line in inFeat.geometry().asMultiPolyline():
@@ -110,14 +111,13 @@ class PolygonizerDialog(QDialog):
       self.ui.pbProgress.setValue(progress)
 
 
-
     #remove duplicate lines
     lineFeat = QgsFeature()
     lines = []
 
-    split_provider.select()
+
     step = 15. / float(split_provider.featureCount())
-    #QMessageBox.critical(self.iface.mainWindow(), "d", str(split_provider.featureCount()))
+    split_provider.select()
     while split_provider.nextFeature( lineFeat ):
       temp = lineFeat.geometry().asPolyline()
       revTemp = [temp[-1], temp[0]]
@@ -125,14 +125,13 @@ class PolygonizerDialog(QDialog):
       progress += step
       self.ui.pbProgress.setValue(progress)
 
-
-    QgsMapLayerRegistry.instance().removeMapLayer(splitID)
+    #QgsMapLayerRegistry.instance().removeMapLayer(splitID)
     del split_lines
     del split_provider
     #QMessageBox.critical(self.iface.mainWindow(), "d", str(len(lines)))
 
     single_lines = QgsVectorLayer("LineString","single","memory")
-    singleID = QgsMapLayerRegistry.instance().addMapLayer(single_lines).getLayerID() 
+    #singleID = QgsMapLayerRegistry.instance().addMapLayer(single_lines).getLayerID() 
     single_provider = single_lines.dataProvider()
 
     step = 15. / float(len(lines))
@@ -143,14 +142,13 @@ class PolygonizerDialog(QDialog):
       progress += step
       self.ui.pbProgress.setValue(progress)
 
+
     #intersections
     index = createIndex(single_provider)
     lines = []
     single_provider.select()
     step = 30. / float(single_provider.featureCount())
     while single_provider.nextFeature(inFeat):
-      #self.ui.pbProgress.setValue(progress)
-      #progress += 1
       pointList = []
       inGeom = inFeat.geometry()
       lineList = index.intersects( inGeom.boundingBox())
@@ -181,14 +179,13 @@ class PolygonizerDialog(QDialog):
       progress += step
       self.ui.pbProgress.setValue(progress)
 
-    QgsMapLayerRegistry.instance().removeMapLayer(singleID)
+    #QgsMapLayerRegistry.instance().removeMapLayer(singleID)
     del single_lines
     del single_provider
 
     #create polygons
     polygons = polygonize( lines )
 
-    #fields.extend([QgsField("area",QVariant.Double),QgsField("perimiter",QVariant.Double)])
     #QMessageBox.critical(self.iface.mainWindow(), "d", str(fields))
     if self.ui.cbGeometry.isChecked():
       fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
@@ -233,6 +230,7 @@ def createIndex( provider ):
     feat = QgsFeature()
     index = QgsSpatialIndex()
     provider.rewind()
+    provider.select()
     while provider.nextFeature( feat ):
         index.insertFeature( feat )
     return index
