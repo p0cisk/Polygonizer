@@ -34,6 +34,8 @@ import shapely
 from shapely.ops import polygonize
 import sys
 
+from time import time
+
 # create the dialog for zoom to point
 class PolygonizerDialog(QDialog):
   def __init__(self, iface): 
@@ -67,6 +69,7 @@ class PolygonizerDialog(QDialog):
 
   def Polygonize(self):
     #start
+    #t1 = time()
     inFeat = QgsFeature()
     inFeatB = QgsFeature()
     outFeat = QgsFeature()
@@ -88,53 +91,31 @@ class PolygonizerDialog(QDialog):
     if out_name.endsWith(".shp"):
       out_name = out_name.left(out_name.length() - 4)
 
-    #split lines into single segments
-    split_lines = QgsVectorLayer("LineString","split","memory")
-    #splitID = QgsMapLayerRegistry.instance().addMapLayer(split_lines).getLayerID()
-    split_provider = split_lines.dataProvider()
-
     if provider.featureCount() == 0:
       QMessageBox.critical(self.iface.mainWindow(), "Polygonizer", "Layer is empty!" )
       sys.exit(0)
-    step = 30. / float(provider.featureCount())
+    step = 20. / float(provider.featureCount())
 
+    #to single lines and without duplicate lines
     provider.select()
+    lines = []
     while provider.nextFeature( inFeat ):
 
       inGeom = inFeat.geometry()
       if inFeat.geometry().isMultipart():
         for line in inFeat.geometry().asMultiPolyline():
-          self.splitline(line,split_provider,split_lines)
+          self.splitline(line,lines)
       else:
-        self.splitline(inFeat.geometry().asPolyline(),split_provider,split_lines)
+        self.splitline(inFeat.geometry().asPolyline(),lines)
       progress += step
       self.ui.pbProgress.setValue(progress)
 
-
-    #remove duplicate lines
-    lineFeat = QgsFeature()
-    lines = []
-
-
-    step = 15. / float(split_provider.featureCount())
-    split_provider.select()
-    while split_provider.nextFeature( lineFeat ):
-      temp = lineFeat.geometry().asPolyline()
-      revTemp = [temp[-1], temp[0]]
-      if temp not in lines and revTemp not in lines: lines.append( lineFeat.geometry().asPolyline() )
-      progress += step
-      self.ui.pbProgress.setValue(progress)
-
-    #QgsMapLayerRegistry.instance().removeMapLayer(splitID)
-    del split_lines
-    del split_provider
     #QMessageBox.critical(self.iface.mainWindow(), "d", str(len(lines)))
 
     single_lines = QgsVectorLayer("LineString","single","memory")
-    #singleID = QgsMapLayerRegistry.instance().addMapLayer(single_lines).getLayerID() 
     single_provider = single_lines.dataProvider()
 
-    step = 15. / float(len(lines))
+    step = 20. / float(len(lines))
     for line in lines:
       outFeat.setGeometry(QgsGeometry.fromPolyline(line))
       single_provider.addFeatures([outFeat])
@@ -147,7 +128,7 @@ class PolygonizerDialog(QDialog):
     index = createIndex(single_provider)
     lines = []
     single_provider.select()
-    step = 30. / float(single_provider.featureCount())
+    step = 50. / float(single_provider.featureCount())
     while single_provider.nextFeature(inFeat):
       pointList = []
       inGeom = inFeat.geometry()
@@ -179,7 +160,6 @@ class PolygonizerDialog(QDialog):
       progress += step
       self.ui.pbProgress.setValue(progress)
 
-    #QgsMapLayerRegistry.instance().removeMapLayer(singleID)
     del single_lines
     del single_provider
 
@@ -207,7 +187,9 @@ class PolygonizerDialog(QDialog):
 
     self.iface.addVectorLayer(new_path, out_name, "ogr")
     self.ui.pbProgress.setValue(100)
-    #self.close()
+    self.close()
+    #t2 = time()
+    #QInputDialog.getText( self.iface.mainWindow(), "m", "e",   QLineEdit.Normal, str( t2 - t1 ) )
   #stop
 
   def getMapLayerByName(self, myName ):
@@ -219,12 +201,11 @@ class PolygonizerDialog(QDialog):
         else:
           return None
 
-  def splitline(self,line,outfile,vlayer):
+  def splitline(self,line,lines):
     for i in range(1,len(line)):
-      newfeature=QgsFeature()
-      newfeature.setGeometry(QgsGeometry.fromPolyline(line[i-1:i+1]))
-      outfile.addFeatures([newfeature])
-      vlayer.updateExtents()
+      temp = line[i-1:i+1]
+      revTemp = [temp[-1], temp[0]]
+      if temp not in lines and revTemp not in lines: lines.append( temp )
 
 def createIndex( provider ):
     feat = QgsFeature()

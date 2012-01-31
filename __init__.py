@@ -18,6 +18,9 @@ email                : p0cisk (at) o2 pl
  *                                                                         *
  ***************************************************************************/
 Changelog:
+1.0
+-improve calculation speed (about 15% faster)
+
 0.3
 -fix error -> polygonize only visible lines if whole layer isn't displayed in map window
 -temp layers aren't visible
@@ -37,7 +40,7 @@ def name():
 def description():
   return "Creates polygons from intersecting lines (requires shapely library)"
 def version(): 
-  return "Version 0.3" 
+  return "Version 1.0" 
 def icon():
   return "icon.png"
 def qgisMinimumVersion():
