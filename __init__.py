@@ -4,9 +4,9 @@ Polygonizer
 A QGIS plugin
 Creates polygons from intersecting lines
                              -------------------
-begin                : 2011-01-20 
+begin                : 2011-01-20
 copyright            : (C) 2011 by Piotr Pociask
-email                : p0cisk (at) o2 pl 
+email                : p0cisk (at) o2 pl
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,11 +18,17 @@ email                : p0cisk (at) o2 pl
  *                                                                         *
  ***************************************************************************/
 Changelog:
+2.0
+-new calculation method - using shapely union (much, much faster)
+-summary of calculation (time and number of created polygons)
+-new icon ;)
+
 1.0
--improve calculation speed (about 15% faster)
+-improved calculation speed (about 15% faster)
+-first non-experimental release
 
 0.3
--fix error -> polygonize only visible lines if whole layer isn't displayed in map window
+-fix error -> only visible lines were polygonized if whole layer wasn't displayed in map window
 -temp layers aren't visible
 
 0.2
@@ -35,19 +41,21 @@ Changelog:
 
  This script initializes the plugin, making it known to QGIS.
 """
-def name(): 
-  return "Polygonizer" 
+def name():
+  return "Polygonizer"
 def description():
   return "Creates polygons from intersecting lines (requires shapely library)"
-def version(): 
-  return "Version 1.0" 
+def version():
+  return "Version 2.0"
 def icon():
   return "icon.png"
 def qgisMinimumVersion():
   return "1.5"
-def classFactory(iface): 
+def authorName():
+  return "Piotr Pociask"
+def classFactory(iface):
   # load Polygonizer class from file Polygonizer
-  from polygonizer import Polygonizer 
+  from polygonizer import Polygonizer
   return Polygonizer(iface)
 
 
