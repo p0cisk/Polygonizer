@@ -53,9 +53,9 @@ def qgisMinimumVersion():
   return "1.5"
 def authorName():
   return "Piotr Pociask"
+def category(): 
+    return "Vector"
 def classFactory(iface):
   # load Polygonizer class from file Polygonizer
   from polygonizer import Polygonizer
   return Polygonizer(iface)
-
-

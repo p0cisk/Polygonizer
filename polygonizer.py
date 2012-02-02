@@ -44,13 +44,28 @@ class Polygonizer:
     QObject.connect(self.action, SIGNAL("triggered()"), self.run)
 
     # Add toolbar button and menu item
-    self.iface.addToolBarIcon(self.action)
-    self.iface.addPluginToMenu("&Polygonizer", self.action)
+    if hasattr(self.iface, "addPluginToRasterMenu"): 
+      # new menu available so add both actions into PluginName submenu 
+      # under Raster menu 
+      self.iface.addPluginToVectorMenu( "&Polygonizer", self.action )  
+      # and add Run button to the Raster panel 
+      self.iface.addVectorToolBarIcon( self.action )
+             
+    else: 
+      self.iface.addToolBarIcon(self.action)
+      self.iface.addPluginToMenu("&Polygonizer", self.action)
 
   def unload(self):
     # Remove the plugin menu item and icon
-    self.iface.removePluginMenu("&Polygonizer",self.action)
-    self.iface.removeToolBarIcon(self.action)
+    if hasattr(self.iface, "addPluginToRasterMenu"): 
+      # new menu used, remove submenus from main Raster menu 
+      self.iface.removePluginVectorMenu( "&Polygonizer",self.action)
+      # also remove button from Raster toolbar 
+      self.iface.removeVectorToolBarIcon( self.action ) 
+    else: 
+      # Plugins menu used, remove submenu and toolbar button 
+      self.iface.removePluginMenu("&Polygonizer",self.action)
+      self.iface.removeToolBarIcon(self.action)
 
   # run method that performs all the real work
   def run(self):
