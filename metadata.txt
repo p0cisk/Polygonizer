@@ -1,0 +1,19 @@
+# This file contains metadata for your plugin. Beginning
+# with version 1.8 this is the preferred way to supply information about a
+# plugin. The current method of embedding metadata in __init__.py will
+# be supported until version 2.0
+
+# This file should be included when you package your plugin.
+
+[general]
+name=Polygonizer
+description=Creates polygons from intersecting lines
+version=2.0
+qgisMinimumVersion=1.0
+category=Vector
+class_name=Polygonizer
+repository=https://github.com/p0cisk/Polygonizer
+tracker=https://github.com/p0cisk/Polygonizer/issues
+dependencies=shapely
+[author]
+name=Piotr Pociask
