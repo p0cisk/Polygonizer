@@ -20,20 +20,16 @@ email                : p0cisk (at) o2 pl
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4.QtCore import QObject, SIGNAL, QSettings, QString, QVariant
+from PyQt4.QtGui import QDialog, QFileDialog, QMessageBox
 from ui_polygonizer import Ui_Form
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsFeature, QgsVectorLayer, QgsField, QgsVectorFileWriter, QgsMapLayerRegistry, QgsGeometry, QgsSpatialIndex, QgsMapLayer, QGis  
 
 from os.path import splitext
-from itertools import groupby
-from os.path import basename
 from os.path import dirname
 
-import shapely
 from shapely.ops import polygonize
-from shapely.geometry import *
+from shapely.geometry import Point,MultiLineString
 import sys
 
 from time import time
@@ -63,7 +59,7 @@ class PolygonizerDialog(QDialog):
     # show the dialog
     dlg.setModal(True)
     dlg.show()
-    result = dlg.exec_()
+    dlg.exec_()
 
   def outFile(self):
     """Open a file save dialog and set the output file path."""
@@ -396,8 +392,8 @@ def saveDialog(parent):
   settings = QSettings()
   key = '/UI/lastShapefileDir'
   outDir = settings.value(key).toString()
-  filter = 'Shapefiles (*.shp)'
-  outFilePath = QFileDialog.getSaveFileName(parent, parent.tr('Save output shapefile'), outDir, filter)
+  extFilter = 'Shapefiles (*.shp)'
+  outFilePath = QFileDialog.getSaveFileName(parent, parent.tr('Save output shapefile'), outDir, extFilter)
   outFilePath = unicode(outFilePath)
   if outFilePath:
     root, ext = splitext(outFilePath)

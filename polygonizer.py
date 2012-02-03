@@ -19,16 +19,14 @@ email                : p0cisk (at) o2 pl
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
+from PyQt4.QtCore import SIGNAL, QObject
+from PyQt4.QtGui import QIcon, QAction
+
 # Initialize Qt resources from file resources.py
 import resources
 #form
 from PolygonizerDialog import PolygonizerDialog
 
-import shapely
-from shapely.ops import polygonize
 
 class Polygonizer:
 
