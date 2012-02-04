@@ -35,7 +35,7 @@ import sys
 from time import time
 from frmAbout import Ui_frmAbout
 
-# create the dialog for zoom to point
+# create the dialog for plugin
 class PolygonizerDialog(QDialog):
   def __init__(self, iface):
     QDialog.__init__(self)
@@ -51,10 +51,8 @@ class PolygonizerDialog(QDialog):
 
     layerList = getLayersNames()
     self.ui.cmbLayer.addItems(layerList)
-    #QInputDialog.getText( self.iface.mainWindow(), "m", "e",   QLineEdit.Normal, str( layerList ) )
 
   def ShowAbout(self):
-    #QMessageBox.question(self, 'Polygonizer', self.version , QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
     dlg = PolygonizerAboutDialog(self.iface)
     # show the dialog
     dlg.setModal(True)
@@ -74,6 +72,16 @@ class PolygonizerDialog(QDialog):
 
   def closeForm(self):
     self.close()
+    
+  def SetWidgetsEnabled(self, value):
+    self.ui.btnCancel.setEnabled(value)
+    self.ui.btnOK.setEnabled(value)
+    self.ui.cmbLayer.setEnabled(value)
+    self.ui.cbGeometry.setEnabled(value)
+    self.ui.eOutput.setEnabled(value)
+    self.ui.btnBrowse.setEnabled(value)
+    self.ui.rbNew.setEnabled(value)
+    self.ui.rbOld.setEnabled(value)
 
   def Polygonize(self):
     if self.ui.cmbLayer.currentText() == "":
@@ -85,7 +93,7 @@ class PolygonizerDialog(QDialog):
     else:
       sys.setcheckinterval(10000)
       setValue = self.ui.pbProgress.setValue
-      SetWidgetsEnabled(self.ui, False)
+      self.SetWidgetsEnabled(False)
 
       setValue(0)
 
@@ -130,7 +138,6 @@ class PolygonizerDialog(QDialog):
 
         polygons = list(polygonize([allLines]))
 
-
         self.polyCount = len(polygons)
         if self.polyCount == 0:
           QMessageBox.critical(self, "Polygonizer", "Sorry, I don't see any polygon!" )
@@ -140,9 +147,8 @@ class PolygonizerDialog(QDialog):
         else:
           step = 65. / self.polyCount
 
-          #addFeature = writer.addFeature
-          setGeometry = outFeat.setGeometry #ok
-          setAttributeMap = outFeat.setAttributeMap #ok
+          setGeometry = outFeat.setGeometry
+          setAttributeMap = outFeat.setAttributeMap
 
           if self.ui.cbGeometry.isChecked():
             fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
@@ -153,7 +159,6 @@ class PolygonizerDialog(QDialog):
             writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
 
             for polygon in polygons:
-              #QInputDialog.getText( self, "m", "e",   QLineEdit.Normal,  str(fields) )
               setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
               setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
               writer.addFeature( outFeat )
@@ -215,7 +220,6 @@ class PolygonizerDialog(QDialog):
           progress += step
           setValue(progress)
 
-        #QMessageBox.critical(self.iface.mainWindow(), "d", str(len(lines)))
 
         single_lines = QgsVectorLayer("LineString","single","memory")
         single_provider = single_lines.dataProvider()
@@ -274,14 +278,12 @@ class PolygonizerDialog(QDialog):
 
         self.polyCount = 0
         self.polyCount = len(polygons)
-        #QMessageBox.critical(self.iface.mainWindow(), "d", str(fields))
-
 
 
         setValue(95)
 
-        setGeometry = outFeat.setGeometry #ok
-        setAttributeMap = outFeat.setAttributeMap #ok
+        setGeometry = outFeat.setGeometry
+        setAttributeMap = outFeat.setAttributeMap
 
         if self.ui.cbGeometry.isChecked():
           fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
@@ -292,7 +294,6 @@ class PolygonizerDialog(QDialog):
           writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
 
           for polygon in polygons:
-            #QInputDialog.getText( self.parent, "m", "e",   QLineEdit.Normal,  str(polygon))
             setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
             setAttributeMap({ nrArea:polygon.area,
                                       nrPerimeter:polygon.length })
@@ -307,7 +308,6 @@ class PolygonizerDialog(QDialog):
           writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
 
           for polygon in polygons:
-            #QInputDialog.getText( self.parent, "m", "e",   QLineEdit.Normal,  str(polygon))
             setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
             writer.addFeature( outFeat )
 
@@ -318,12 +318,9 @@ class PolygonizerDialog(QDialog):
           setValue(100)
 
 
-      # koniec
       self.t2 = time()
 
-      #self.ui.pbProgress.setValue(0)
-      SetWidgetsEnabled(self.ui,True)
-
+      self.SetWidgetsEnabled(True)
 
       msg = QMessageBox.question(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested. \n Load created layer?' % ((self.t2 - self.t1), self.polyCount), QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
       if msg == QMessageBox.Yes:
@@ -356,16 +353,6 @@ class PolygonizerDialog(QDialog):
       if temp not in lines and revTemp not in lines: lines.append( temp )
 
 
-
-def SetWidgetsEnabled(ui, value):
-  ui.btnCancel.setEnabled(value)
-  ui.btnOK.setEnabled(value)
-  ui.cmbLayer.setEnabled(value)
-  ui.cbGeometry.setEnabled(value)
-  ui.eOutput.setEnabled(value)
-  ui.btnBrowse.setEnabled(value)
-  ui.rbNew.setEnabled(value)
-  ui.rbOld.setEnabled(value)
 
 def getMapLayerByName(myName ):
   layermap = QgsMapLayerRegistry.instance().mapLayers()
