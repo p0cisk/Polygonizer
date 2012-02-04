@@ -33,7 +33,6 @@ from shapely.geometry import Point,MultiLineString
 import sys
 
 from time import time
-from frmAbout import Ui_frmAbout
 
 # create the dialog for plugin
 class PolygonizerDialog(QDialog):
@@ -47,17 +46,9 @@ class PolygonizerDialog(QDialog):
     QObject.connect( self.ui.btnBrowse, SIGNAL( "clicked()" ), self.outFile )
     QObject.connect( self.ui.btnCancel, SIGNAL( "clicked()" ), self.closeForm )
     QObject.connect( self.ui.btnOK, SIGNAL( "clicked()" ), self.Polygonize )
-    QObject.connect( self.ui.bAbout, SIGNAL( "clicked()" ), self.ShowAbout )
 
     layerList = getLayersNames()
     self.ui.cmbLayer.addItems(layerList)
-
-  def ShowAbout(self):
-    dlg = PolygonizerAboutDialog(self.iface)
-    # show the dialog
-    dlg.setModal(True)
-    dlg.show()
-    dlg.exec_()
 
   def outFile(self):
     """Open a file save dialog and set the output file path."""
@@ -430,12 +421,3 @@ def sqrPointsDist(point1, point2):
 
   sqrDist = (x1-x2)**2 + (y1-y2)**2
   return sqrDist
-
-
-class PolygonizerAboutDialog(QDialog):
-  def __init__(self, iface):
-    QDialog.__init__(self)
-    # Set up the user interface from Designer.
-    self.ui = Ui_frmAbout()
-    self.ui.setupUi(self)
-    self.iface = iface

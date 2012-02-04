@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Documents and Settings\Pocisk\.qgis\python\plugins\Polygonizer\ui_polygonizer.ui'
 #
-# Created: Wed Jul 27 20:12:54 2011
+# Created: Sat Feb 04 11:15:46 2012
 #      by: PyQt4 UI code generator 4.8.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -17,7 +17,7 @@ except AttributeError:
 class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName(_fromUtf8("Form"))
-        Form.resize(494, 243)
+        Form.resize(494, 233)
         Form.setAutoFillBackground(False)
         self.gridLayout = QtGui.QGridLayout(Form)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
@@ -56,17 +56,6 @@ class Ui_Form(object):
         self.btnCancel.setFlat(False)
         self.btnCancel.setObjectName(_fromUtf8("btnCancel"))
         self.gridLayout.addWidget(self.btnCancel, 6, 2, 1, 1)
-        self.bAbout = QtGui.QPushButton(Form)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.bAbout.sizePolicy().hasHeightForWidth())
-        self.bAbout.setSizePolicy(sizePolicy)
-        self.bAbout.setMaximumSize(QtCore.QSize(25, 16777215))
-        self.bAbout.setLayoutDirection(QtCore.Qt.RightToLeft)
-        self.bAbout.setFlat(True)
-        self.bAbout.setObjectName(_fromUtf8("bAbout"))
-        self.gridLayout.addWidget(self.bAbout, 0, 2, 1, 1)
         self.groupBox = QtGui.QGroupBox(Form)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.MinimumExpanding)
         sizePolicy.setHorizontalStretch(0)
@@ -95,7 +84,6 @@ class Ui_Form(object):
         Form.setTabOrder(self.eOutput, self.btnBrowse)
         Form.setTabOrder(self.btnBrowse, self.btnOK)
         Form.setTabOrder(self.btnOK, self.btnCancel)
-        Form.setTabOrder(self.btnCancel, self.bAbout)
 
     def retranslateUi(self, Form):
         Form.setWindowTitle(QtGui.QApplication.translate("Form", "Polygonizer", None, QtGui.QApplication.UnicodeUTF8))
@@ -105,7 +93,6 @@ class Ui_Form(object):
         self.btnBrowse.setText(QtGui.QApplication.translate("Form", "Browse", None, QtGui.QApplication.UnicodeUTF8))
         self.btnOK.setText(QtGui.QApplication.translate("Form", "OK", None, QtGui.QApplication.UnicodeUTF8))
         self.btnCancel.setText(QtGui.QApplication.translate("Form", "Close", None, QtGui.QApplication.UnicodeUTF8))
-        self.bAbout.setText(QtGui.QApplication.translate("Form", "?", None, QtGui.QApplication.UnicodeUTF8))
         self.groupBox.setTitle(QtGui.QApplication.translate("Form", "Choose polygonization method", None, QtGui.QApplication.UnicodeUTF8))
         self.rbNew.setText(QtGui.QApplication.translate("Form", "New method (faster)", None, QtGui.QApplication.UnicodeUTF8))
         self.rbOld.setText(QtGui.QApplication.translate("Form", "Old method (slow, use only when new method doesn\'t work)", None, QtGui.QApplication.UnicodeUTF8))
