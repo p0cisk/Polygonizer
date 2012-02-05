@@ -64,10 +64,17 @@ class PolygonizerDialog(QDialog):
     self.ui.eOutput.setText(outFilePath)
 
   def closeForm(self):
-    self.close()
+    if self.ui.btnCancel.text() == 'Cancel':
+      QObject.disconnect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
+      QObject.disconnect(self.layer,SIGNAL("editingStarted()"), self.startEditing)
+      
+      self.polygonizeThread.terminate()
+      self.SetWidgetsEnabled(True)
+      self.ui.pbProgress.setValue(0)
+    else:
+      self.close()
     
   def SetWidgetsEnabled(self, value):
-    self.ui.btnCancel.setEnabled(value)
     self.ui.btnOK.setEnabled(value)
     self.ui.cmbLayer.setEnabled(value)
     self.ui.cbGeometry.setEnabled(value)
@@ -76,6 +83,11 @@ class PolygonizerDialog(QDialog):
     self.ui.btnBrowse.setEnabled(value)
     self.ui.rbNew.setEnabled(value)
     self.ui.rbOld.setEnabled(value)
+    
+    if not value:
+      self.ui.btnCancel.setText('Cancel')
+    else:
+      self.ui.btnCancel.setText('Close')
 
 
   def threadFinished(self):
@@ -94,13 +106,13 @@ class PolygonizerDialog(QDialog):
 
       self.iface.addVectorLayer(self.ui.eOutput.text(), out_name, "ogr")
     
-    QObject.disconnect(layer,SIGNAL("editingStarted()"), self.parent.startEditing)
+    QObject.disconnect(self.layer,SIGNAL("editingStarted()"), self.startEditing)
     self.close()
 
 
   def startEditing(self):
     QMessageBox.critical(self, "Polygonizer", "You can't edit layer while polygonizing!" )
-    QObject.sender().rollBack()
+    self.layer.rollBack()
 
 
   def Polygonize(self):
@@ -137,16 +149,16 @@ class unionPolygonizeThread(QThread):
       self.ui = parent.ui
       
   def run(self):
-    global polyCount
+    global polyCount    
     inFeat = QgsFeature()
     outFeat = QgsFeature()
     
     setValue = self.ui.pbProgress.setValue
     progress = 0.
     
-    layer = getMapLayerByName(self.ui.cmbLayer.currentText())
-    provider = layer.dataProvider()
-    QObject.connect(layer,SIGNAL("editingStarted()"), self.parent.startEditing)
+    self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
+    provider = self.parent.layer.dataProvider()
+    QObject.connect(self.parent.layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
     
@@ -157,7 +169,7 @@ class unionPolygonizeThread(QThread):
 
     provider.select()
 
-    step = 30. / layer.featureCount()
+    step = 30. / self.parent.layer.featureCount()
     allLinesList = []
     allLinesListExtend = allLinesList.extend
     allLinesListAppend = allLinesList.append
@@ -197,7 +209,7 @@ class unionPolygonizeThread(QThread):
         nrArea = len(fields)-2
         nrPerimeter = len(fields)-1
 
-        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
         for polygon in polygons:
           setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
@@ -211,7 +223,7 @@ class unionPolygonizeThread(QThread):
         del writer
 
       else:
-        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
         for polygon in polygons:
           setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
           writer.addFeature( outFeat )
@@ -239,9 +251,9 @@ class splitPolygonizeThread(QThread):
     setValue = self.ui.pbProgress.setValue
     progress = 0.
 
-    layer = getMapLayerByName(self.ui.cmbLayer.currentText())
-    provider = layer.dataProvider()
-    QObject.connect(layer,SIGNAL("editingStarted()"), self.parent.startEditing)
+    self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
+    provider = self.parent.layer.dataProvider()
+    QObject.connect(self.parent.layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
     if self.ui.cbTable.isChecked():
@@ -342,7 +354,7 @@ class splitPolygonizeThread(QThread):
       nrArea = len(fields)-2
       nrPerimeter = len(fields)-1
 
-      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
       for polygon in polygons:
         setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
@@ -353,7 +365,7 @@ class splitPolygonizeThread(QThread):
         setValue(progress)
 
     else:
-      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
       for polygon in polygons:
         setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
