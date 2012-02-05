@@ -94,9 +94,15 @@ class PolygonizerDialog(QDialog):
 
       self.iface.addVectorLayer(self.ui.eOutput.text(), out_name, "ogr")
     
+    QObject.disconnect(layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     self.close()
-  
-  
+
+
+  def startEditing(self):
+    QMessageBox.critical(self, "Polygonizer", "You can't edit layer while polygonizing!" )
+    QObject.sender().rollBack()
+
+
   def Polygonize(self):
     if self.ui.cmbLayer.currentText() == "":
       QMessageBox.critical(self, "Polygonizer", "Select line layer first!" )
@@ -140,6 +146,7 @@ class unionPolygonizeThread(QThread):
     
     layer = getMapLayerByName(self.ui.cmbLayer.currentText())
     provider = layer.dataProvider()
+    QObject.connect(layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
     
@@ -234,7 +241,7 @@ class splitPolygonizeThread(QThread):
 
     layer = getMapLayerByName(self.ui.cmbLayer.currentText())
     provider = layer.dataProvider()
-
+    QObject.connect(layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
     if self.ui.cbTable.isChecked():
