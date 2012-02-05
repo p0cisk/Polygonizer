@@ -103,7 +103,10 @@ class PolygonizerDialog(QDialog):
         provider = layer.dataProvider()
         allAttrs = provider.attributeIndexes()
         provider.select(allAttrs)
-        fields = provider.fields()
+        if self.ui.cbTable.isChecked():
+            fields = provider.fields()
+        else:
+            fields = {}
 
         provider.select()
 
@@ -132,7 +135,7 @@ class PolygonizerDialog(QDialog):
         self.polyCount = len(polygons)
         if self.polyCount == 0:
           QMessageBox.critical(self, "Polygonizer", "Sorry, I don't see any polygon!" )
-          SetWidgetsEnabled(self.ui, True)
+          self.SetWidgetsEnabled(self.ui, True)
           setValue(0)
           return
         else:
@@ -185,7 +188,10 @@ class PolygonizerDialog(QDialog):
 
         allAttrs = provider.attributeIndexes()
         provider.select(allAttrs)
-        fields = provider.fields()
+        if self.ui.cbTable.isChecked():
+            fields = provider.fields()
+        else:
+            fields = {}
 
         new_path = self.ui.eOutput.text()
         if new_path.contains("\\"):
@@ -286,8 +292,7 @@ class PolygonizerDialog(QDialog):
 
           for polygon in polygons:
             setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-            setAttributeMap({ nrArea:polygon.area,
-                                      nrPerimeter:polygon.length })
+            setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
             writer.addFeature( outFeat )
 
             progress += step
