@@ -65,6 +65,10 @@ class PolygonizerDialog(QDialog):
 
   def closeForm(self):
     if self.ui.btnCancel.text() == 'Cancel':
+      msg = QMessageBox.question(self, 'Polygonizer', 'Stop process?', QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+      if msg == QMessageBox.No:
+        return
+
       QObject.disconnect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
       QObject.disconnect(self.layer,SIGNAL("editingStarted()"), self.startEditing)
       
