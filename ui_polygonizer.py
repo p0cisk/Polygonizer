@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Documents and Settings\Pocisk\.qgis\python\plugins\Polygonizer\ui_polygonizer.ui'
 #
-# Created: Sun Feb 05 11:06:38 2012
+# Created: Sat Feb 04 21:22:11 2012
 #      by: PyQt4 UI code generator 4.8.3
 #
 # WARNING! All changes made in this file will be lost!
