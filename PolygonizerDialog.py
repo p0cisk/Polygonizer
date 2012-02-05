@@ -20,7 +20,7 @@ email                : p0cisk (at) o2 pl
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import QObject, SIGNAL, QSettings, QString, QVariant
+from PyQt4.QtCore import QObject, SIGNAL, QSettings, QString, QVariant, QThread
 from PyQt4.QtGui import QDialog, QFileDialog, QMessageBox
 from ui_polygonizer import Ui_Form
 from qgis.core import QgsFeature, QgsVectorLayer, QgsField, QgsVectorFileWriter, QgsMapLayerRegistry, QgsGeometry, QgsSpatialIndex, QgsMapLayer, QGis  
@@ -30,9 +30,11 @@ from os.path import dirname
 
 from shapely.ops import polygonize
 from shapely.geometry import Point,MultiLineString
-import sys
 
 from time import time
+
+
+global polyCount
 
 # create the dialog for plugin
 class PolygonizerDialog(QDialog):
@@ -69,285 +71,300 @@ class PolygonizerDialog(QDialog):
     self.ui.btnOK.setEnabled(value)
     self.ui.cmbLayer.setEnabled(value)
     self.ui.cbGeometry.setEnabled(value)
+    self.ui.cbTable.setEnabled(value)
     self.ui.eOutput.setEnabled(value)
     self.ui.btnBrowse.setEnabled(value)
     self.ui.rbNew.setEnabled(value)
     self.ui.rbOld.setEnabled(value)
 
+
+  def threadFinished(self):
+    self.SetWidgetsEnabled(True)
+    self.t2 = time()
+    
+    msg = QMessageBox.question(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested. \n Load created layer?' % ((self.t2 - self.t1), polyCount), QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+    if msg == QMessageBox.Yes:
+      new_path = self.ui.eOutput.text()
+      if new_path.contains("\\"):
+        out_name = new_path.right((new_path.length() - new_path.lastIndexOf("\\")) - 1)
+      else:
+        out_name = new_path.right((new_path.length() - new_path.lastIndexOf("/")) - 1)
+      if out_name.endsWith(".shp"):
+        out_name = out_name.left(out_name.length() - 4)
+
+      self.iface.addVectorLayer(self.ui.eOutput.text(), out_name, "ogr")
+    
+    self.close()
+  
+  
   def Polygonize(self):
     if self.ui.cmbLayer.currentText() == "":
       QMessageBox.critical(self, "Polygonizer", "Select line layer first!" )
+      return
     elif getMapLayerByName(self.ui.cmbLayer.currentText()).dataProvider().featureCount() == 0:
       QMessageBox.critical(self, "Polygonizer", "Selected layer has no lines!" )
+      return
     elif self.ui.eOutput.text() == "":
       QMessageBox.critical(self, "Polygonizer", "Choose output file!" )
+      return
+
+    self.SetWidgetsEnabled(False)
+
+    self.t1 = time()
+
+    if self.ui.rbNew.isChecked():
+      self.polygonizeThread = unionPolygonizeThread(self)
+      QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
+      self.polygonizeThread.start()
+
     else:
-      sys.setcheckinterval(10000)
-      setValue = self.ui.pbProgress.setValue
-      self.SetWidgetsEnabled(False)
+      self.polygonizeThread = splitPolygonizeThread(self)
+      QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
+      self.polygonizeThread.start()
 
+
+
+class unionPolygonizeThread(QThread):
+  def __init__(self, parent):
+      super(unionPolygonizeThread, self).__init__(parent)
+      self.parent = parent
+      self.ui = parent.ui
+      
+  def run(self):
+    global polyCount
+    inFeat = QgsFeature()
+    outFeat = QgsFeature()
+    
+    setValue = self.ui.pbProgress.setValue
+    progress = 0.
+    
+    layer = getMapLayerByName(self.ui.cmbLayer.currentText())
+    provider = layer.dataProvider()
+    allAttrs = provider.attributeIndexes()
+    provider.select(allAttrs)
+    
+    if self.ui.cbTable.isChecked():
+      fields = provider.fields()
+    else:
+      fields = {}
+
+    provider.select()
+
+    step = 30. / layer.featureCount()
+    allLinesList = []
+    allLinesListExtend = allLinesList.extend
+    allLinesListAppend = allLinesList.append
+
+    while provider.nextFeature(inFeat):
+      geom = inFeat.geometry()
+
+      if geom.isMultipart():
+        allLinesListExtend(geom.asMultiPolyline() )
+      else:
+        allLinesListAppend(geom.asPolyline())
+
+      progress += step
+      setValue(progress)
+
+
+    allLines = MultiLineString(allLinesList)
+    allLines = allLines.union(Point(0,0))
+
+    polygons = list(polygonize([allLines]))
+
+    polyCount = len(polygons)
+    if polyCount == 0:
+      QMessageBox.critical(self, "Polygonizer", "No polygons were created!" )
+      self.SetWidgetsEnabled(self.ui, True)
       setValue(0)
+      return
+    else:
+      step = 65. / polyCount
 
-      self.t1 = time()
+      setGeometry = outFeat.setGeometry
+      setAttributeMap = outFeat.setAttributeMap
 
+      if self.ui.cbGeometry.isChecked():
+        fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
+        fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
+        nrArea = len(fields)-2
+        nrPerimeter = len(fields)-1
 
-      if self.ui.rbNew.isChecked():
-        inFeat = QgsFeature()
-        outFeat = QgsFeature()
-        layer = QgsVectorLayer()
+        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
 
-        layer = getMapLayerByName(self.ui.cmbLayer.currentText())
-
-        progress = 0.
-
-        provider = layer.dataProvider()
-        allAttrs = provider.attributeIndexes()
-        provider.select(allAttrs)
-        if self.ui.cbTable.isChecked():
-            fields = provider.fields()
-        else:
-            fields = {}
-
-        provider.select()
-
-        step = 30. / layer.featureCount()
-        allLinesList = []
-        allLinesListExtend = allLinesList.extend
-        allLinesListAppend = allLinesList.append
-
-        while provider.nextFeature(inFeat):
-          geom = inFeat.geometry()
-
-          if geom.isMultipart():
-            allLinesListExtend(geom.asMultiPolyline() )
-          else:
-            allLinesListAppend(geom.asPolyline())
+        for polygon in polygons:
+          setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
+          setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
+          writer.addFeature( outFeat )
 
           progress += step
           setValue(progress)
 
-
-        allLines = MultiLineString(allLinesList)
-        allLines = allLines.union(Point(0,0))
-
-        polygons = list(polygonize([allLines]))
-
-        self.polyCount = len(polygons)
-        if self.polyCount == 0:
-          QMessageBox.critical(self, "Polygonizer", "Sorry, I don't see any polygon!" )
-          self.SetWidgetsEnabled(self.ui, True)
-          setValue(0)
-          return
-        else:
-          step = 65. / self.polyCount
-
-          setGeometry = outFeat.setGeometry
-          setAttributeMap = outFeat.setAttributeMap
-
-          if self.ui.cbGeometry.isChecked():
-            fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
-            fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
-            nrArea = len(fields)-2
-            nrPerimeter = len(fields)-1
-
-            writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
-
-            for polygon in polygons:
-              setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-              setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
-              writer.addFeature( outFeat )
-
-              progress += step
-              setValue(progress)
-
-            setValue(100)
-            del writer
-
-          else:
-            writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
-            for polygon in polygons:
-              setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-              writer.addFeature( outFeat )
-
-              progress += step
-              setValue(progress)
-
-            setValue(100)
-            del writer
-
+        setValue(100)
+        del writer
 
       else:
-        inFeat = QgsFeature()
-        inFeatB = QgsFeature()
-        outFeat = QgsFeature()
-        layer = QgsVectorLayer()
-        layer = self.getMapLayerByName(self.ui.cmbLayer.currentText())
-        progress = 0.
+        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+        for polygon in polygons:
+          setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
+          writer.addFeature( outFeat )
 
-        provider = layer.dataProvider()
-
-        allAttrs = provider.attributeIndexes()
-        provider.select(allAttrs)
-        if self.ui.cbTable.isChecked():
-            fields = provider.fields()
-        else:
-            fields = {}
-
-        new_path = self.ui.eOutput.text()
-        if new_path.contains("\\"):
-          out_name = new_path.right((new_path.length() - new_path.lastIndexOf("\\")) - 1)
-        else:
-          out_name = new_path.right((new_path.length() - new_path.lastIndexOf("/")) - 1)
-        if out_name.endsWith(".shp"):
-          out_name = out_name.left(out_name.length() - 4)
-
-        step = 20. / float(provider.featureCount())
-
-        #to single lines and without duplicate lines
-        provider.select()
-        lines = []
-        while provider.nextFeature( inFeat ):
-
-          inGeom = inFeat.geometry()
-          if inFeat.geometry().isMultipart():
-            for line in inFeat.geometry().asMultiPolyline():
-              self.splitline(line,lines)
-          else:
-            self.splitline(inFeat.geometry().asPolyline(),lines)
           progress += step
           setValue(progress)
 
-
-        single_lines = QgsVectorLayer("LineString","single","memory")
-        single_provider = single_lines.dataProvider()
-
-        step = 20. / float(len(lines))
-        for line in lines:
-          outFeat.setGeometry(QgsGeometry.fromPolyline(line))
-          single_provider.addFeatures([outFeat])
-          single_lines.updateExtents()
-          progress += step
-          setValue(progress)
+        setValue(100)
+        del writer
 
 
-        #intersections
-        index = createIndex(single_provider)
-        lines = []
-        single_provider.select()
-        step = 50. / float(single_provider.featureCount())
-        while single_provider.nextFeature(inFeat):
-          pointList = []
-          inGeom = inFeat.geometry()
-          lineList = index.intersects( inGeom.boundingBox())
-          if len(lineList) > 0:
-            for i in lineList:
-              single_provider.featureAtId( int(i), inFeatB, True, allAttrs)
-              tmpGeom = QgsGeometry( inFeatB.geometry() )
-              if inGeom.intersects(tmpGeom):
-                pointGeom = inGeom.intersection(tmpGeom)
-                if pointGeom.type() == QGis.Point:
-                  if pointGeom.asPoint() not in pointList:
-                    pointList.append(pointGeom.asPoint())
-            linePoints = []
-            linePoints = inGeom.asPolyline()
-            s = [i for i in pointList+linePoints if i not in linePoints]
-            if len(s)>1:
-              l = sortPoints(linePoints[0],s)
-            else: l = s
 
-            tempLine = []
-            tempLine.append(linePoints[0])
-            tempLine.extend(l)
-            tempLine.append(linePoints[1])
+class splitPolygonizeThread(QThread):
+  def __init__(self, parent):
+    super(splitPolygonizeThread, self).__init__(parent)
+    self.parent = parent
+    self.ui = parent.ui
+        
+  def run(self):
+    global polyCount
+    inFeat = QgsFeature()
+    inFeatB = QgsFeature()
+    outFeat = QgsFeature()
+    
+    setValue = self.ui.pbProgress.setValue
+    progress = 0.
 
-            countSubLines = len(tempLine)-1
-            for p in range(countSubLines):
-              lines.append([tempLine[p],tempLine[p+1]])
-          progress += step
-          setValue(progress)
+    layer = getMapLayerByName(self.ui.cmbLayer.currentText())
+    provider = layer.dataProvider()
 
-        del single_lines
-        del single_provider
+    allAttrs = provider.attributeIndexes()
+    provider.select(allAttrs)
+    if self.ui.cbTable.isChecked():
+      fields = provider.fields()
+    else:
+      fields = {}
 
-        #create polygons
+    new_path = self.ui.eOutput.text()
+    if new_path.contains("\\"):
+      out_name = new_path.right((new_path.length() - new_path.lastIndexOf("\\")) - 1)
+    else:
+      out_name = new_path.right((new_path.length() - new_path.lastIndexOf("/")) - 1)
+    if out_name.endsWith(".shp"):
+      out_name = out_name.left(out_name.length() - 4)
 
-        polygons = list(polygonize( lines ))
+    step = 20. / float(provider.featureCount())
 
-        self.polyCount = 0
-        self.polyCount = len(polygons)
+    #to single lines and without duplicate lines
+    provider.select()
+    lines = []
+    while provider.nextFeature( inFeat ):
 
-
-        setValue(95)
-
-        setGeometry = outFeat.setGeometry
-        setAttributeMap = outFeat.setAttributeMap
-
-        if self.ui.cbGeometry.isChecked():
-          fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
-          fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
-          nrArea = len(fields)-2
-          nrPerimeter = len(fields)-1
-
-          writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
-
-          for polygon in polygons:
-            setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-            setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
-            writer.addFeature( outFeat )
-
-            progress += step
-            setValue(progress)
-
-          del writer
-          setValue(100)
-        else:
-          writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
-
-          for polygon in polygons:
-            setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-            writer.addFeature( outFeat )
-
-            progress += step
-            setValue(progress)
-
-          del writer
-          setValue(100)
+      inGeom = inFeat.geometry()
+      if inFeat.geometry().isMultipart():
+        for line in inFeat.geometry().asMultiPolyline():
+          splitline(line,lines)
+      else:
+        splitline(inFeat.geometry().asPolyline(),lines)
+      progress += step
+      setValue(progress)
 
 
-      self.t2 = time()
+    single_lines = QgsVectorLayer("LineString","single","memory")
+    single_provider = single_lines.dataProvider()
 
-      self.SetWidgetsEnabled(True)
-
-      msg = QMessageBox.question(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested. \n Load created layer?' % ((self.t2 - self.t1), self.polyCount), QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-      if msg == QMessageBox.Yes:
-        new_path = self.ui.eOutput.text()
-        if new_path.contains("\\"):
-          out_name = new_path.right((new_path.length() - new_path.lastIndexOf("\\")) - 1)
-        else:
-          out_name = new_path.right((new_path.length() - new_path.lastIndexOf("/")) - 1)
-        if out_name.endsWith(".shp"):
-          out_name = out_name.left(out_name.length() - 4)
-
-        self.iface.addVectorLayer(self.ui.eOutput.text(), out_name, "ogr")
-
-      self.close()
+    step = 20. / float(len(lines))
+    for line in lines:
+      outFeat.setGeometry(QgsGeometry.fromPolyline(line))
+      single_provider.addFeatures([outFeat])
+      single_lines.updateExtents()
+      progress += step
+      setValue(progress)
 
 
-  def getMapLayerByName(self, myName ):
-    layermap = QgsMapLayerRegistry.instance().mapLayers()
-    for name, layer in layermap.iteritems():
-      if layer.name() == myName:
-        if layer.isValid():
-          return layer
-        else:
-          return None
+    #intersections
+    index = createIndex(single_provider)
+    lines = []
+    single_provider.select()
+    step = 50. / float(single_provider.featureCount())
+    while single_provider.nextFeature(inFeat):
+      pointList = []
+      inGeom = inFeat.geometry()
+      lineList = index.intersects( inGeom.boundingBox())
+      if len(lineList) > 0:
+        for i in lineList:
+          single_provider.featureAtId( int(i), inFeatB, True, allAttrs)
+          tmpGeom = QgsGeometry( inFeatB.geometry() )
+          if inGeom.intersects(tmpGeom):
+            pointGeom = inGeom.intersection(tmpGeom)
+            if pointGeom.type() == QGis.Point:
+              if pointGeom.asPoint() not in pointList:
+                pointList.append(pointGeom.asPoint())
+        linePoints = []
+        linePoints = inGeom.asPolyline()
+        s = [i for i in pointList+linePoints if i not in linePoints]
+        if len(s)>1:
+          l = sortPoints(linePoints[0],s)
+        else: l = s
 
-  def splitline(self,line,lines):
-    for i in range(1,len(line)):
-      temp = line[i-1:i+1]
-      revTemp = [temp[-1], temp[0]]
-      if temp not in lines and revTemp not in lines: lines.append( temp )
+        tempLine = []
+        tempLine.append(linePoints[0])
+        tempLine.extend(l)
+        tempLine.append(linePoints[1])
 
+        countSubLines = len(tempLine)-1
+        for p in range(countSubLines):
+          lines.append([tempLine[p],tempLine[p+1]])
+      progress += step
+      setValue(progress)
+
+    del single_lines
+    del single_provider
+
+    #create polygons
+    polygons = list(polygonize( lines ))
+
+    polyCount = 0
+    polyCount = len(polygons)
+
+    setValue(95)
+
+    setGeometry = outFeat.setGeometry
+    setAttributeMap = outFeat.setAttributeMap
+
+    if self.ui.cbGeometry.isChecked():
+      fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
+      fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
+      nrArea = len(fields)-2
+      nrPerimeter = len(fields)-1
+
+      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+
+      for polygon in polygons:
+        setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
+        setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
+        writer.addFeature( outFeat )
+
+        progress += step
+        setValue(progress)
+
+    else:
+      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,layer.srs() )
+
+      for polygon in polygons:
+        setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
+        writer.addFeature( outFeat )
+
+        progress += step
+        setValue(progress)
+
+    del writer
+    setValue(100)
+    
+
+
+def splitline(line,lines):
+  for i in range(1,len(line)):
+    temp = line[i-1:i+1]
+    revTemp = [temp[-1], temp[0]]
+    if temp not in lines and revTemp not in lines: lines.append( temp )
 
 
 def getMapLayerByName(myName ):
@@ -370,6 +387,7 @@ def getLayersNames():
 
   return layerlist
 
+
 def saveDialog(parent):
   """Shows a save file dialog and return the selected file path."""
   settings = QSettings()
@@ -386,6 +404,7 @@ def saveDialog(parent):
     settings.setValue(key, outDir)
   return outFilePath
 
+
 def createIndex( provider ):
     feat = QgsFeature()
     index = QgsSpatialIndex()
@@ -394,6 +413,7 @@ def createIndex( provider ):
     while provider.nextFeature( feat ):
         index.insertFeature( feat )
     return index
+
 
 #sorts point along line
 def sortPoints(firstPoint, pointList ):
@@ -416,6 +436,7 @@ def sortPoints(firstPoint, pointList ):
       sortedPoints.append(item[1])
 
   return sortedPoints
+
 
 def sqrPointsDist(point1, point2):
   x1 = point1[0]
