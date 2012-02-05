@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Documents and Settings\Pocisk\.qgis\python\plugins\Polygonizer\ui_polygonizer.ui'
 #
-# Created: Sat Feb 04 11:15:46 2012
+# Created: Sat Feb 04 21:22:11 2012
 #      by: PyQt4 UI code generator 4.8.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -32,10 +32,6 @@ class Ui_Form(object):
         self.cmbLayer.setSizePolicy(sizePolicy)
         self.cmbLayer.setObjectName(_fromUtf8("cmbLayer"))
         self.gridLayout.addWidget(self.cmbLayer, 1, 0, 1, 3)
-        self.cbGeometry = QtGui.QCheckBox(Form)
-        self.cbGeometry.setChecked(True)
-        self.cbGeometry.setObjectName(_fromUtf8("cbGeometry"))
-        self.gridLayout.addWidget(self.cbGeometry, 2, 0, 1, 2)
         self.label_2 = QtGui.QLabel(Form)
         self.label_2.setObjectName(_fromUtf8("label_2"))
         self.gridLayout.addWidget(self.label_2, 4, 0, 1, 1)
@@ -74,11 +70,18 @@ class Ui_Form(object):
         self.rbOld.setObjectName(_fromUtf8("rbOld"))
         self.verticalLayout.addWidget(self.rbOld)
         self.gridLayout.addWidget(self.groupBox, 3, 0, 1, 3)
+        self.cbGeometry = QtGui.QCheckBox(Form)
+        self.cbGeometry.setChecked(True)
+        self.cbGeometry.setObjectName(_fromUtf8("cbGeometry"))
+        self.gridLayout.addWidget(self.cbGeometry, 2, 1, 1, 2)
+        self.cbTable = QtGui.QCheckBox(Form)
+        self.cbTable.setObjectName(_fromUtf8("cbTable"))
+        self.gridLayout.addWidget(self.cbTable, 2, 0, 1, 1)
 
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
-        Form.setTabOrder(self.cmbLayer, self.cbGeometry)
-        Form.setTabOrder(self.cbGeometry, self.rbNew)
+        Form.setTabOrder(self.cmbLayer, self.cbTable)
+        Form.setTabOrder(self.cbTable, self.rbNew)
         Form.setTabOrder(self.rbNew, self.rbOld)
         Form.setTabOrder(self.rbOld, self.eOutput)
         Form.setTabOrder(self.eOutput, self.btnBrowse)
@@ -88,7 +91,6 @@ class Ui_Form(object):
     def retranslateUi(self, Form):
         Form.setWindowTitle(QtGui.QApplication.translate("Form", "Polygonizer", None, QtGui.QApplication.UnicodeUTF8))
         self.label.setText(QtGui.QApplication.translate("Form", "Input line vector layer:", None, QtGui.QApplication.UnicodeUTF8))
-        self.cbGeometry.setText(QtGui.QApplication.translate("Form", "Create geometry columns", None, QtGui.QApplication.UnicodeUTF8))
         self.label_2.setText(QtGui.QApplication.translate("Form", "Output file:", None, QtGui.QApplication.UnicodeUTF8))
         self.btnBrowse.setText(QtGui.QApplication.translate("Form", "Browse", None, QtGui.QApplication.UnicodeUTF8))
         self.btnOK.setText(QtGui.QApplication.translate("Form", "OK", None, QtGui.QApplication.UnicodeUTF8))
@@ -96,4 +98,6 @@ class Ui_Form(object):
         self.groupBox.setTitle(QtGui.QApplication.translate("Form", "Choose polygonization method", None, QtGui.QApplication.UnicodeUTF8))
         self.rbNew.setText(QtGui.QApplication.translate("Form", "New method (faster)", None, QtGui.QApplication.UnicodeUTF8))
         self.rbOld.setText(QtGui.QApplication.translate("Form", "Old method (slow, use only when new method doesn\'t work)", None, QtGui.QApplication.UnicodeUTF8))
+        self.cbGeometry.setText(QtGui.QApplication.translate("Form", "Create geometry columns", None, QtGui.QApplication.UnicodeUTF8))
+        self.cbTable.setText(QtGui.QApplication.translate("Form", "Copy table fields from line layer", None, QtGui.QApplication.UnicodeUTF8))
 

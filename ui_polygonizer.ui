@@ -34,16 +34,6 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="2">
-    <widget class="QCheckBox" name="cbGeometry">
-     <property name="text">
-      <string>Create geometry columns</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
    <item row="4" column="0">
     <widget class="QLabel" name="label_2">
      <property name="text">
@@ -123,11 +113,28 @@
      </layout>
     </widget>
    </item>
+   <item row="2" column="1" colspan="2">
+    <widget class="QCheckBox" name="cbGeometry">
+     <property name="text">
+      <string>Create geometry columns</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QCheckBox" name="cbTable">
+     <property name="text">
+      <string>Copy table fields from line layer</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <tabstops>
   <tabstop>cmbLayer</tabstop>
-  <tabstop>cbGeometry</tabstop>
+  <tabstop>cbTable</tabstop>
   <tabstop>rbNew</tabstop>
   <tabstop>rbOld</tabstop>
   <tabstop>eOutput</tabstop>
