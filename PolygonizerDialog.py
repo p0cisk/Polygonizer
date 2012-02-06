@@ -83,10 +83,12 @@ class PolygonizerDialog(QDialog):
     self.ui.cmbLayer.setEnabled(value)
     self.ui.cbGeometry.setEnabled(value)
     self.ui.cbTable.setEnabled(value)
-    self.ui.eOutput.setEnabled(value)
-    self.ui.btnBrowse.setEnabled(value)
     self.ui.rbNew.setEnabled(value)
     self.ui.rbOld.setEnabled(value)
+    self.ui.cbOutput.setEnabled(value)
+    
+    self.ui.eOutput.setEnabled(self.ui.cbOutput.isChecked() and value )
+    self.ui.btnBrowse.setEnabled(self.ui.cbOutput.isChecked() and value)
     
     if not value:
       self.ui.btnCancel.setText('Cancel')
