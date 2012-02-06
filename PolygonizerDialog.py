@@ -136,25 +136,28 @@ class PolygonizerDialog(QDialog):
 
     self.t1 = time()
 
-    if self.ui.rbNew.isChecked():
-      self.polygonizeThread = unionPolygonizeThread(self)
-      QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
-      self.polygonizeThread.start()
-
-    else:
-      self.polygonizeThread = splitPolygonizeThread(self)
-      QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
-      self.polygonizeThread.start()
+    self.polygonizeThread = polygonizeThread(self, self.ui.rbNew.isChecked() )
+    QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
+    self.polygonizeThread.start()
 
 
 
-class unionPolygonizeThread(QThread):
-  def __init__(self, parent):
-      super(unionPolygonizeThread, self).__init__(parent)
+class polygonizeThread(QThread):
+  def __init__(self, parent, useUnion):
+      super(polygonizeThread, self).__init__(parent)
       self.parent = parent
       self.ui = parent.ui
-      
-  def run(self):
+      self.useUnion = useUnion
+
+
+  def run(self, useUnion=True):
+    if self.useUnion:
+      self.union()
+    else:
+      self.split()
+
+
+  def union(self):
     global polyCount    
     inFeat = QgsFeature()
     outFeat = QgsFeature()
@@ -190,7 +193,6 @@ class unionPolygonizeThread(QThread):
 
       progress += step
       setValue(progress)
-
 
     allLines = MultiLineString(allLinesList)
     allLines = allLines.union(Point(0,0))
@@ -241,14 +243,7 @@ class unionPolygonizeThread(QThread):
         del writer
 
 
-
-class splitPolygonizeThread(QThread):
-  def __init__(self, parent):
-    super(splitPolygonizeThread, self).__init__(parent)
-    self.parent = parent
-    self.ui = parent.ui
-        
-  def run(self):
+  def split(self):
     global polyCount
     inFeat = QgsFeature()
     inFeatB = QgsFeature()
@@ -291,7 +286,6 @@ class splitPolygonizeThread(QThread):
       progress += step
       setValue(progress)
 
-
     single_lines = QgsVectorLayer("LineString","single","memory")
     single_provider = single_lines.dataProvider()
 
@@ -302,7 +296,6 @@ class splitPolygonizeThread(QThread):
       single_lines.updateExtents()
       progress += step
       setValue(progress)
-
 
     #intersections
     index = createIndex(single_provider)
