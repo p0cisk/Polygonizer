@@ -33,7 +33,6 @@ from shapely.geometry import Point,MultiLineString
 
 from time import time
 
-
 global polyCount
 
 # create the dialog for plugin
@@ -71,13 +70,13 @@ class PolygonizerDialog(QDialog):
 
       QObject.disconnect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
       QObject.disconnect(self.layer,SIGNAL("editingStarted()"), self.startEditing)
-      
+
       self.polygonizeThread.terminate()
       self.SetWidgetsEnabled(True)
       self.ui.pbProgress.setValue(0)
     else:
       self.close()
-    
+
   def SetWidgetsEnabled(self, value):
     self.ui.btnOK.setEnabled(value)
     self.ui.cmbLayer.setEnabled(value)
@@ -86,10 +85,9 @@ class PolygonizerDialog(QDialog):
     self.ui.rbNew.setEnabled(value)
     self.ui.rbOld.setEnabled(value)
     self.ui.cbOutput.setEnabled(value)
-    
     self.ui.eOutput.setEnabled(self.ui.cbOutput.isChecked() and value )
     self.ui.btnBrowse.setEnabled(self.ui.cbOutput.isChecked() and value)
-    
+
     if not value:
       self.ui.btnCancel.setText('Cancel')
     else:
@@ -97,21 +95,24 @@ class PolygonizerDialog(QDialog):
 
 
   def threadFinished(self):
-    self.SetWidgetsEnabled(True)
     self.t2 = time()
-    
-    msg = QMessageBox.question(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested. \n Load created layer?' % ((self.t2 - self.t1), polyCount), QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-    if msg == QMessageBox.Yes:
-      new_path = self.ui.eOutput.text()
-      if new_path.contains("\\"):
-        out_name = new_path.right((new_path.length() - new_path.lastIndexOf("\\")) - 1)
-      else:
-        out_name = new_path.right((new_path.length() - new_path.lastIndexOf("/")) - 1)
-      if out_name.endsWith(".shp"):
-        out_name = out_name.left(out_name.length() - 4)
 
-      self.iface.addVectorLayer(self.ui.eOutput.text(), out_name, "ogr")
-    
+    if self.ui.cbOutput.isChecked():
+      msg = QMessageBox.question(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested. \n Load created layer?' % ((self.t2 - self.t1), polyCount), QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+      if msg == QMessageBox.Yes:
+        new_path = self.ui.eOutput.text()
+        if new_path.contains("\\"):
+          out_name = new_path.right((new_path.length() - new_path.lastIndexOf("\\")) - 1)
+        else:
+          out_name = new_path.right((new_path.length() - new_path.lastIndexOf("/")) - 1)
+        if out_name.endsWith(".shp"):
+          out_name = out_name.left(out_name.length() - 4)
+
+        self.iface.addVectorLayer(self.ui.eOutput.text(), out_name, "ogr")
+    else:
+      QgsMapLayerRegistry().instance().addMapLayer(self.mLayer)
+      QMessageBox.information(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested.' % ((self.t2 - self.t1), polyCount))
+
     QObject.disconnect(self.layer,SIGNAL("editingStarted()"), self.startEditing)
     self.close()
 
@@ -128,12 +129,8 @@ class PolygonizerDialog(QDialog):
     elif getMapLayerByName(self.ui.cmbLayer.currentText()).dataProvider().featureCount() == 0:
       QMessageBox.critical(self, "Polygonizer", "Selected layer has no lines!" )
       return
-    elif self.ui.eOutput.text() == "":
-      QMessageBox.critical(self, "Polygonizer", "Choose output file!" )
-      return
 
     self.SetWidgetsEnabled(False)
-
     self.t1 = time()
 
     self.polygonizeThread = polygonizeThread(self, self.ui.rbNew.isChecked() )
@@ -149,43 +146,36 @@ class polygonizeThread(QThread):
       self.ui = parent.ui
       self.useUnion = useUnion
 
-
   def run(self, useUnion=True):
     if self.useUnion:
       self.union()
     else:
       self.split()
 
-
   def union(self):
-    global polyCount    
+    global polyCount
     inFeat = QgsFeature()
-    outFeat = QgsFeature()
-    
+
     setValue = self.ui.pbProgress.setValue
     progress = 0.
-    
+
+    setValue(0)
+
     self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
     provider = self.parent.layer.dataProvider()
     QObject.connect(self.parent.layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
-    
-    if self.ui.cbTable.isChecked():
-      fields = provider.fields()
-    else:
-      fields = {}
 
     provider.select()
 
-    step = 30. / self.parent.layer.featureCount()
+    step = 45. / self.parent.layer.featureCount()
     allLinesList = []
     allLinesListExtend = allLinesList.extend
     allLinesListAppend = allLinesList.append
 
     while provider.nextFeature(inFeat):
       geom = inFeat.geometry()
-
       if geom.isMultipart():
         allLinesListExtend(geom.asMultiPolyline() )
       else:
@@ -206,49 +196,17 @@ class polygonizeThread(QThread):
       setValue(0)
       return
     else:
-      step = 65. / polyCount
-
-      setGeometry = outFeat.setGeometry
-      setAttributeMap = outFeat.setAttributeMap
-
-      if self.ui.cbGeometry.isChecked():
-        fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
-        fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
-        nrArea = len(fields)-2
-        nrPerimeter = len(fields)-1
-
-        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
-
-        for polygon in polygons:
-          setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-          setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
-          writer.addFeature( outFeat )
-
-          progress += step
-          setValue(progress)
-
-        setValue(100)
-        del writer
-
+      if self.ui.cbOutput.isChecked():
+        self.saveAsFile(polygons, progress)
       else:
-        writer = QgsVectorFileWriter(self.ui.eOutput.text(),provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
-        for polygon in polygons:
-          setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-          writer.addFeature( outFeat )
-
-          progress += step
-          setValue(progress)
-
-        setValue(100)
-        del writer
-
+        self.saveInMemory(polygons, progress)
 
   def split(self):
     global polyCount
     inFeat = QgsFeature()
     inFeatB = QgsFeature()
     outFeat = QgsFeature()
-    
+
     setValue = self.ui.pbProgress.setValue
     progress = 0.
 
@@ -257,10 +215,6 @@ class polygonizeThread(QThread):
     QObject.connect(self.parent.layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
-    if self.ui.cbTable.isChecked():
-      fields = provider.fields()
-    else:
-      fields = {}
 
     new_path = self.ui.eOutput.text()
     if new_path.contains("\\"):
@@ -338,22 +292,37 @@ class polygonizeThread(QThread):
 
     #create polygons
     polygons = list(polygonize( lines ))
-
-    polyCount = 0
     polyCount = len(polygons)
-
     setValue(95)
 
+    if self.ui.cbOutput.isChecked():
+      self.saveAsFile(polygons, progress)
+    else:
+      self.saveInMemory(polygons, progress)
+
+  def saveAsFile(self, polygons, progress):
+    global polyCount
+    outFeat = QgsFeature()
+
+    setValue = self.ui.pbProgress.setValue
     setGeometry = outFeat.setGeometry
     setAttributeMap = outFeat.setAttributeMap
+
+    if self.ui.cbTable.isChecked():
+      fields = self.parent.layer.dataProvider().fields()
+    else:
+      fields = {}
+    polyCount = len(polygons)
+    step = 50. / polyCount
+    new_path = self.ui.eOutput.text()
+
+    writer = QgsVectorFileWriter(new_path,self.parent.layer.dataProvider().encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
     if self.ui.cbGeometry.isChecked():
       fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
       fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
       nrArea = len(fields)-2
       nrPerimeter = len(fields)-1
-
-      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
       for polygon in polygons:
         setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
@@ -362,10 +331,7 @@ class polygonizeThread(QThread):
 
         progress += step
         setValue(progress)
-
     else:
-      writer = QgsVectorFileWriter(new_path,provider.encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
-
       for polygon in polygons:
         setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
         writer.addFeature( outFeat )
@@ -375,7 +341,51 @@ class polygonizeThread(QThread):
 
     del writer
     setValue(100)
-    
+
+  def saveInMemory(self, polygons, progress):
+    global polyCount
+    outFeat = QgsFeature()
+
+    setValue = self.ui.pbProgress.setValue
+    setGeometry = outFeat.setGeometry
+    setAttributeMap = outFeat.setAttributeMap
+
+    if self.ui.cbTable.isChecked():
+      fields = self.parent.layer.dataProvider().fields()
+    else:
+      fields = {}
+    polyCount = len(polygons)
+    step = 50. / polyCount
+
+    mLayer = QgsVectorLayer("Polygon", '%s_polygons' % self.ui.cmbLayer.currentText(), "memory")
+    provider = mLayer.dataProvider()
+    if self.ui.cbGeometry.isChecked():
+      fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
+      fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
+      nrArea = len(fields)-2
+      nrPerimeter = len(fields)-1
+
+      provider.addAttributes([fields[i] for i in range(len(fields))])
+      for polygon in polygons:
+        setGeometry(QgsGeometry.fromWkt(polygon.wkt))
+        setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
+        provider.addFeatures([outFeat])
+
+        progress += step
+        setValue(progress)
+    else:
+      provider.addAttributes([fields[i] for i in range(len(fields))])
+      for polygon in polygons:
+        setGeometry(QgsGeometry.fromWkt(polygon.wkt))
+        provider.addFeatures([outFeat])
+
+        progress += step
+        setValue(progress)
+
+    mLayer.updateExtents()
+    mLayer.updateFieldMap()
+    self.parent.mLayer = mLayer
+    setValue(100)
 
 
 def splitline(line,lines):
