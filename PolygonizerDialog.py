@@ -48,6 +48,7 @@ class PolygonizerDialog(QDialog):
     QObject.connect( self.ui.btnCancel, SIGNAL( "clicked()" ), self.closeForm )
     QObject.connect( self.ui.btnOK, SIGNAL( "clicked()" ), self.Polygonize )
 
+    #load line layers to ComboBox
     layerList = getLayersNames()
     self.ui.cmbLayer.addItems(layerList)
 
@@ -56,13 +57,10 @@ class PolygonizerDialog(QDialog):
     outFilePath = saveDialog(self)
     if not outFilePath:
       return
-    self.setOutFilePath(QString(outFilePath))
-
-  def setOutFilePath(self, outFilePath):
-    """Set the output file path."""
-    self.ui.eOutput.setText(outFilePath)
+    self.ui.eOutput.setText((QString(outFilePath)))
 
   def closeForm(self):
+    ''' Stop polygonization process or close window '''
     if self.ui.btnCancel.text() == 'Cancel':
       msg = QMessageBox.question(self, 'Polygonizer', 'Stop process?', QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
       if msg == QMessageBox.No:
@@ -78,6 +76,10 @@ class PolygonizerDialog(QDialog):
       self.close()
 
   def SetWidgetsEnabled(self, value):
+    '''
+    Sets wigdets disabled while calculating  
+    value: True (enable) or False (disable)
+    '''
     self.ui.btnOK.setEnabled(value)
     self.ui.cmbLayer.setEnabled(value)
     self.ui.cbGeometry.setEnabled(value)
@@ -95,6 +97,10 @@ class PolygonizerDialog(QDialog):
 
 
   def threadFinished(self):
+    '''
+    run when calculation ends
+    ask to load created shapefile
+    '''
     self.t2 = time()
 
     if self.ui.cbOutput.isChecked():
@@ -118,11 +124,13 @@ class PolygonizerDialog(QDialog):
 
 
   def startEditing(self):
+    '''Disable editing line layer while calculating'''
     QMessageBox.critical(self, "Polygonizer", "You can't edit layer while polygonizing!" )
     self.layer.rollBack()
 
 
   def Polygonize(self):
+    '''start calculation'''
     if self.ui.cmbLayer.currentText() == "":
       QMessageBox.critical(self, "Polygonizer", "Select line layer first!" )
       return
@@ -141,18 +149,25 @@ class PolygonizerDialog(QDialog):
 
 class polygonizeThread(QThread):
   def __init__(self, parent, useUnion):
+      '''
+      initilize thread which do calculation
+      parent: PolygonizerDialog class instance
+      useUnion: True if user choose new method of calculation 
+      '''
       super(polygonizeThread, self).__init__(parent)
       self.parent = parent
       self.ui = parent.ui
       self.useUnion = useUnion
 
-  def run(self, useUnion=True):
+  def run(self):
+    '''start calculation'''
     if self.useUnion:
       self.union()
     else:
       self.split()
 
   def union(self):
+    '''new method using Union function'''
     global polyCount
     inFeat = QgsFeature()
 
@@ -202,6 +217,7 @@ class polygonizeThread(QThread):
         self.saveInMemory(polygons, progress)
 
   def split(self):
+    '''old method'''
     global polyCount
     inFeat = QgsFeature()
     inFeatB = QgsFeature()
@@ -301,6 +317,11 @@ class polygonizeThread(QThread):
       self.saveInMemory(polygons, progress)
 
   def saveAsFile(self, polygons, progress):
+    '''
+    save output polygon layer as Shapefile
+    polygons: list of polygons created by Polygonize function
+    progress: progress bar value
+    '''
     global polyCount
     outFeat = QgsFeature()
 
@@ -343,6 +364,11 @@ class polygonizeThread(QThread):
     setValue(100)
 
   def saveInMemory(self, polygons, progress):
+    '''
+    save output polygon as memory layer
+    polygons: list of polygons created by Polygonize function
+    progress: progress bar value
+    '''
     global polyCount
     outFeat = QgsFeature()
 
@@ -389,6 +415,11 @@ class polygonizeThread(QThread):
 
 
 def splitline(line,lines):
+  '''
+  split line into segments
+  @param line: input line
+  @param lines: output list containing two point segments
+  '''
   for i in range(1,len(line)):
     temp = line[i-1:i+1]
     revTemp = [temp[-1], temp[0]]
@@ -396,6 +427,10 @@ def splitline(line,lines):
 
 
 def getMapLayerByName(myName ):
+  '''
+  return pointer to line layer by name in layer list
+  @param myName: name of layer
+  '''
   layermap = QgsMapLayerRegistry.instance().mapLayers()
   for name, layer in layermap.iteritems():
     if layer.name() == myName:
@@ -406,6 +441,9 @@ def getMapLayerByName(myName ):
 
 
 def getLayersNames():
+  '''
+  return list of line layers loaded into QGIS
+  '''
   layermap = QgsMapLayerRegistry.instance().mapLayers()
   layerlist = []
   for name, layer in layermap.iteritems():
@@ -434,13 +472,17 @@ def saveDialog(parent):
 
 
 def createIndex( provider ):
-    feat = QgsFeature()
-    index = QgsSpatialIndex()
-    provider.rewind()
-    provider.select()
-    while provider.nextFeature( feat ):
-        index.insertFeature( feat )
-    return index
+  '''
+  return Spatial Index of line layer features
+  @param provider: QgsDataProvider
+  '''
+  feat = QgsFeature()
+  index = QgsSpatialIndex()
+  provider.rewind()
+  provider.select()
+  while provider.nextFeature( feat ):
+    index.insertFeature( feat )
+  return index
 
 
 #sorts point along line
@@ -467,6 +509,11 @@ def sortPoints(firstPoint, pointList ):
 
 
 def sqrPointsDist(point1, point2):
+  '''
+  return distance between two points
+  @param point1: first point
+  @param point2: second point
+  '''
   x1 = point1[0]
   y1 = point1[1]
 
