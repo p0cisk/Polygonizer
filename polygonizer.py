@@ -20,12 +20,12 @@ email                : p0cisk (at) o2 pl
 """
 # Import the PyQt and QGIS libraries
 from PyQt4.QtCore import SIGNAL, QObject
-from PyQt4.QtGui import QIcon, QAction, QDialog
+from PyQt4.QtGui import QIcon, QAction, QDialog, QMessageBox
 
 # Initialize Qt resources from file resources.py
 import resources
 #form
-from PolygonizerDialog import PolygonizerDialog
+from PolygonizerDialog import PolygonizerDialog, getLayersNames
 from frmAbout import Ui_frmAbout
 
 
@@ -82,6 +82,14 @@ class Polygonizer:
   def run(self):
 
     dlg = PolygonizerDialog(self.iface)
+    
+    #load line layers to ComboBox
+    layerList = getLayersNames()
+    if not layerList:
+      QMessageBox.critical(None, 'Polygonizer', 'No line layers loaded into QGIS', buttons=QMessageBox.Ok)
+      return
+    dlg.ui.cmbLayer.addItems(layerList)
+    
     # show the dialog
     dlg.show()
     result = dlg.exec_()

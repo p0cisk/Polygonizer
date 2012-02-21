@@ -48,10 +48,6 @@ class PolygonizerDialog(QDialog):
     QObject.connect( self.ui.btnCancel, SIGNAL( "clicked()" ), self.closeForm )
     QObject.connect( self.ui.btnOK, SIGNAL( "clicked()" ), self.Polygonize )
 
-    #load line layers to ComboBox
-    layerList = getLayersNames()
-    self.ui.cmbLayer.addItems(layerList)
-
   def outFile(self):
     """Open a file save dialog and set the output file path."""
     outFilePath = saveDialog(self)
