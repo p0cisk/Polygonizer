@@ -8,8 +8,8 @@
 [general]
 name=Polygonizer
 description=Creates polygons from intersecting lines
-version=2.0
-qgisMinimumVersion=1.0
+version=2.1
+qgisMinimumVersion=1.5
 category=Vector
 class_name=Polygonizer
 repository=https://github.com/p0cisk/Polygonizer
