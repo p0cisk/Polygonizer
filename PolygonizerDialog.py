@@ -7,7 +7,7 @@ Creates polygons from intersecting lines
                              -------------------
 begin                : 2011-01-17
 copyright            : (C) 2011 by Piotr Pociask
-email                : p0cisk (at) o2 pl
+email                : opengis84 (at) gmail (dot) com
  ***************************************************************************/
 
 /***************************************************************************
@@ -126,6 +126,13 @@ class PolygonizerDialog(QDialog):
     self.layer.rollBack()
 
 
+  def noPolygons(self):
+    '''reset GUI when no polygons where created by polygonize process'''
+    QMessageBox.critical(self, "Polygonizer", "No polygons were created!" )
+    self.SetWidgetsEnabled(True)
+    self.ui.pbProgress.setValue(0)
+
+
   def Polygonize(self):
     '''start calculation'''
     if self.ui.cmbLayer.currentText() == "":
@@ -139,13 +146,22 @@ class PolygonizerDialog(QDialog):
     self.t1 = time()
 
     self.polygonizeThread = polygonizeThread(self, self.ui.rbNew.isChecked() )
-    
+
+    #thread finished
     QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
+    #set progress bar value
     QObject.connect(self.polygonizeThread, SIGNAL("progress"), self.setProgress)
-    
+    #show info and reset GUI when no polygons where created by polygonize process
+    QObject.connect(self.polygonizeThread, SIGNAL("noPolygons"), self.noPolygons)
+
     self.polygonizeThread.start()
-    
+
+
   def setProgress(self, value):
+    '''
+    set progress bar value
+    value: value to set
+    '''
     self.ui.pbProgress.setValue(value)
 
 
@@ -180,6 +196,7 @@ class polygonizeThread(QThread):
 
     self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
     provider = self.parent.layer.dataProvider()
+    #user can't toggle edit mode of line layer while polygonizing, plugin automatically turn it off 
     QObject.connect(self.parent.layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
@@ -207,10 +224,10 @@ class polygonizeThread(QThread):
     polygons = list(polygonize([allLines]))
 
     polyCount = len(polygons)
+    #if no polygons where created then exit from thread
     if polyCount == 0:
-      QMessageBox.critical(self, "Polygonizer", "No polygons were created!" )
-      self.SetWidgetsEnabled(self.ui, True)
-      self.emit(SIGNAL('progress'), 0)
+      QObject.disconnect(self.parent.polygonizeThread,SIGNAL("finished()"), self.parent.threadFinished)
+      self.emit(SIGNAL('noPolygons'))
       return
     else:
       if self.ui.cbOutput.isChecked():
@@ -229,6 +246,7 @@ class polygonizeThread(QThread):
 
     self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
     provider = self.parent.layer.dataProvider()
+    #user can't toggle edit mode of line layer while polygonizing, plugin automatically turn it off
     QObject.connect(self.parent.layer,SIGNAL("editingStarted()"), self.parent.startEditing)
     allAttrs = provider.attributeIndexes()
     provider.select(allAttrs)
@@ -345,8 +363,8 @@ class polygonizeThread(QThread):
       writer = QgsVectorFileWriter(new_path,self.parent.layer.dataProvider().encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
       for polygon in polygons:
-        outFeat.setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-        outFeat.setAttributeMap({ nrArea:QVariant(polygon.area), nrPerimeter:QVariant(polygon.length) })
+        setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
+        setAttributeMap({ nrArea:QVariant(polygon.area), nrPerimeter:QVariant(polygon.length) })
         writer.addFeature( outFeat )
 
         progress += step

@@ -6,7 +6,7 @@ Creates polygons from intersecting lines
                              -------------------
 begin                : 2011-01-20
 copyright            : (C) 2011 by Piotr Pociask
-email                : p0cisk (at) o2 pl
+email                : opengis84 (at) gmail (dot) com
  ***************************************************************************/
 
 /***************************************************************************

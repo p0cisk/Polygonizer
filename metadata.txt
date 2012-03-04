@@ -17,3 +17,4 @@ tracker=https://github.com/p0cisk/Polygonizer/issues
 dependencies=shapely
 [author]
 name=Piotr Pociask
+email=opengis84 (at) gmail (dot) com
