@@ -116,6 +116,7 @@ class PolygonizerDialog(QDialog):
       QMessageBox.information(self, 'Polygonizer', 'Polygonization finished in %03.2f seconds. \n %d polygons were crested.' % ((self.t2 - self.t1), polyCount))
 
     QObject.disconnect(self.layer,SIGNAL("editingStarted()"), self.startEditing)
+    QObject.disconnect(self.polygonizeThread, SIGNAL("progress"), self.setProgress)
     self.close()
 
 
@@ -138,8 +139,14 @@ class PolygonizerDialog(QDialog):
     self.t1 = time()
 
     self.polygonizeThread = polygonizeThread(self, self.ui.rbNew.isChecked() )
+    
     QObject.connect(self.polygonizeThread,SIGNAL("finished()"), self.threadFinished)
+    QObject.connect(self.polygonizeThread, SIGNAL("progress"), self.setProgress)
+    
     self.polygonizeThread.start()
+    
+  def setProgress(self, value):
+    self.ui.pbProgress.setValue(value)
 
 
 
@@ -167,10 +174,9 @@ class polygonizeThread(QThread):
     global polyCount
     inFeat = QgsFeature()
 
-    setValue = self.ui.pbProgress.setValue
     progress = 0.
 
-    setValue(0)
+    self.emit(SIGNAL('progress'), 0)
 
     self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
     provider = self.parent.layer.dataProvider()
@@ -193,7 +199,7 @@ class polygonizeThread(QThread):
         allLinesListAppend(geom.asPolyline())
 
       progress += step
-      setValue(progress)
+      self.emit(SIGNAL('progress'), progress)
 
     allLines = MultiLineString(allLinesList)
     allLines = allLines.union(Point(0,0))
@@ -204,7 +210,7 @@ class polygonizeThread(QThread):
     if polyCount == 0:
       QMessageBox.critical(self, "Polygonizer", "No polygons were created!" )
       self.SetWidgetsEnabled(self.ui, True)
-      setValue(0)
+      self.emit(SIGNAL('progress'), 0)
       return
     else:
       if self.ui.cbOutput.isChecked():
@@ -219,7 +225,6 @@ class polygonizeThread(QThread):
     inFeatB = QgsFeature()
     outFeat = QgsFeature()
 
-    setValue = self.ui.pbProgress.setValue
     progress = 0.
 
     self.parent.layer = getMapLayerByName(self.ui.cmbLayer.currentText())
@@ -250,7 +255,7 @@ class polygonizeThread(QThread):
       else:
         splitline(inFeat.geometry().asPolyline(),lines)
       progress += step
-      setValue(progress)
+      self.emit(SIGNAL('progress'), progress)
 
     single_lines = QgsVectorLayer("LineString","single","memory")
     single_provider = single_lines.dataProvider()
@@ -261,7 +266,7 @@ class polygonizeThread(QThread):
       single_provider.addFeatures([outFeat])
       single_lines.updateExtents()
       progress += step
-      setValue(progress)
+      self.emit(SIGNAL('progress'), progress)
 
     #intersections
     index = createIndex(single_provider)
@@ -297,7 +302,7 @@ class polygonizeThread(QThread):
         for p in range(countSubLines):
           lines.append([tempLine[p],tempLine[p+1]])
       progress += step
-      setValue(progress)
+      self.emit(SIGNAL('progress'), progress)
 
     del single_lines
     del single_provider
@@ -305,7 +310,7 @@ class polygonizeThread(QThread):
     #create polygons
     polygons = list(polygonize( lines ))
     polyCount = len(polygons)
-    setValue(95)
+    self.emit(SIGNAL('progress'), 95)
 
     if self.ui.cbOutput.isChecked():
       self.saveAsFile(polygons, progress)
@@ -321,7 +326,6 @@ class polygonizeThread(QThread):
     global polyCount
     outFeat = QgsFeature()
 
-    setValue = self.ui.pbProgress.setValue
     setGeometry = outFeat.setGeometry
     setAttributeMap = outFeat.setAttributeMap
 
@@ -347,17 +351,17 @@ class polygonizeThread(QThread):
         writer.addFeature( outFeat )
 
         progress += step
-        setValue(progress)
+        self.emit(SIGNAL('progress'), progress)
     else:
       for polygon in polygons:
         setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
         writer.addFeature( outFeat )
 
         progress += step
-        setValue(progress)
+        self.emit(SIGNAL('progress'), progress)
 
     del writer
-    setValue(100)
+    self.emit(SIGNAL('progress'), 100)
 
   def saveInMemory(self, polygons, progress):
     '''
@@ -368,7 +372,6 @@ class polygonizeThread(QThread):
     global polyCount
     outFeat = QgsFeature()
 
-    setValue = self.ui.pbProgress.setValue
     setGeometry = outFeat.setGeometry
     setAttributeMap = outFeat.setAttributeMap
 
@@ -394,7 +397,7 @@ class polygonizeThread(QThread):
         provider.addFeatures([outFeat])
 
         progress += step
-        setValue(progress)
+        self.emit(SIGNAL('progress'), progress)
     else:
       provider.addAttributes([fields[i] for i in range(len(fields))])
       for polygon in polygons:
@@ -402,12 +405,12 @@ class polygonizeThread(QThread):
         provider.addFeatures([outFeat])
 
         progress += step
-        setValue(progress)
+        self.emit(SIGNAL('progress'), progress)
 
     mLayer.updateExtents()
     mLayer.updateFieldMap()
     self.parent.mLayer = mLayer
-    setValue(100)
+    self.emit(SIGNAL('progress'), 100)
 
 
 def splitline(line,lines):
