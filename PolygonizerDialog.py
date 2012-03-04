@@ -337,22 +337,23 @@ class polygonizeThread(QThread):
     step = 50. / polyCount
     new_path = self.ui.eOutput.text()
 
-    writer = QgsVectorFileWriter(new_path,self.parent.layer.dataProvider().encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
-
-    if self.ui.cbGeometry.isChecked():
+    if self.ui.cbGeometry.isChecked():    
       fields[len(fields)] = QgsField("area",QVariant.Double,"double",16,2)
       fields[len(fields)] = QgsField("perimeter",QVariant.Double,"double",16,2)
       nrArea = len(fields)-2
       nrPerimeter = len(fields)-1
+      writer = QgsVectorFileWriter(new_path,self.parent.layer.dataProvider().encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
 
       for polygon in polygons:
-        setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
-        setAttributeMap({ nrArea:polygon.area, nrPerimeter:polygon.length })
+        outFeat.setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
+        outFeat.setAttributeMap({ nrArea:QVariant(polygon.area), nrPerimeter:QVariant(polygon.length) })
         writer.addFeature( outFeat )
 
         progress += step
         self.emit(SIGNAL('progress'), progress)
     else:
+      writer = QgsVectorFileWriter(new_path,self.parent.layer.dataProvider().encoding(),fields,QGis.WKBPolygon,self.parent.layer.srs() )
+
       for polygon in polygons:
         setGeometry( QgsGeometry.fromWkt( polygon.wkt ) )
         writer.addFeature( outFeat )
