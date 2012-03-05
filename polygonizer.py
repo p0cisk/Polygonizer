@@ -38,7 +38,7 @@ class Polygonizer:
   def initGui(self):
     # Create action that will start plugin configuration
     self.action = QAction(QIcon(":/plugins/polygonizer/icon.png"), "Polygonizer", self.iface.mainWindow())
-    self.actionAbout = QAction( QIcon( ":/about.png" ), "About", self.iface.mainWindow() )
+    self.actionAbout = QAction( QIcon( ":/plugins/polygonizer/about.png" ), "About", self.iface.mainWindow() )
     # connect the action to the run method
     QObject.connect(self.action, SIGNAL("triggered()"), self.run)
     QObject.connect( self.actionAbout, SIGNAL( "triggered()" ), self.showAbout )
